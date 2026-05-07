@@ -2,16 +2,25 @@ name: Scheduled News Scraping
 
 on:
   schedule:
-    # KST = UTC+9. 07/09/12/15 KST → UTC 22/00/03/06
-    - cron: '0 22 * * *'   # 07:00 KST
-    - cron: '0 0 * * *'    # 09:00 KST
-    - cron: '0 3 * * *'    # 12:00 KST
-    - cron: '0 6 * * *'    # 15:00 KST
+    # KST = UTC+9
+    # 정각이 아닌 X분으로 설정하면 GitHub Actions 큐 대기를 줄일 수 있음
+    - cron: '13 22 * * *'   # 07:13 KST
+    - cron: '13 0 * * *'    # 09:13 KST
+    - cron: '13 3 * * *'    # 12:13 KST
+    - cron: '13 6 * * *'    # 15:13 KST
   workflow_dispatch:        # 수동 실행 허용
+  push:                     # 코드 푸시 시에도 실행 (스케줄 활성화 효과)
+    branches:
+      - main
+    paths:
+      - 'scraper.py'
+      - 'config.py'
+      - '.github/workflows/scrape.yml'
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,13 +37,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run scraper
-        run: python scraper.py
+      - name: Run scraper (with retry)
+        run: |
+          for i in 1 2 3; do
+            echo "===== 시도 $i/3 ====="
+            python scraper.py && break
+            echo "실패, 30초 후 재시도..."
+            sleep 30
+          done
+
+      - name: Show current time
+        run: |
+          echo "UTC 시각: $(date -u)"
+          echo "KST 시각: $(TZ=Asia/Seoul date)"
 
       - name: Commit and push DB
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add data/articles.db
-          git diff --quiet && git diff --staged --quiet || \
-            (git commit -m "Auto: 기사 업데이트 $(date +'%Y-%m-%d %H:%M')" && git push)
+          if git diff --staged --quiet; then
+            echo "변경사항 없음 - 커밋 생략"
+          else
+            git commit -m "Auto: 기사 업데이트 $(TZ=Asia/Seoul date +'%Y-%m-%d %H:%M KST')"
+            git push
+          fi
