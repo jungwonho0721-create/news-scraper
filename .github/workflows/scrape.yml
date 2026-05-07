@@ -1,0 +1,40 @@
+name: Scheduled News Scraping
+
+on:
+  schedule:
+    # KST = UTC+9. 07/09/12/15 KST → UTC 22/00/03/06
+    - cron: '0 22 * * *'   # 07:00 KST
+    - cron: '0 0 * * *'    # 09:00 KST
+    - cron: '0 3 * * *'    # 12:00 KST
+    - cron: '0 6 * * *'    # 15:00 KST
+  workflow_dispatch:        # 수동 실행 허용
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run scraper
+        run: python scraper.py
+
+      - name: Commit and push DB
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/articles.db
+          git diff --quiet && git diff --staged --quiet || \
+            (git commit -m "Auto: 기사 업데이트 $(date +'%Y-%m-%d %H:%M')" && git push)
