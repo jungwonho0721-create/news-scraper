@@ -1,6 +1,7 @@
 """
 웹 크롤링 모듈 - 검증된 국내 언론사 RSS + 구글 뉴스 RSS 조합
 - 모든 시각을 KST(한국 시간) 기준으로 처리
+- 6개 분야 지원 (원자력, 전력, 방산, 반도체, 물류, 해운)
 """
 import time
 import requests
@@ -16,12 +17,11 @@ from database import insert_article, init_db
 # SSL 인증서 검증 우회 (사내망 대응)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# 한국 표준시 (UTC+9)
+# 한국 표준시
 KST = timezone(timedelta(hours=9))
 
 
 def now_kst():
-    """현재 KST 시각 반환"""
     return datetime.now(KST)
 
 
@@ -36,6 +36,17 @@ RSS_FEEDS = [
     {"name": "전자신문", "url": "https://rss.etnews.com/Section901.xml"},
 ]
 
+# 분야별 구글뉴스 검색용 대표 키워드 (보강 검색용)
+# 분야 키워드 중 너무 일반적이지 않으면서도 잘 매칭되는 것들 선정
+SEARCH_KEYWORDS = {
+    "원자력": ["원자력", "원전", "SMR"],
+    "전력": ["전력망", "한전", "신재생에너지"],
+    "방산": ["방산수출", "K-방산", "방위산업"],
+    "반도체": ["반도체", "HBM", "파운드리"],
+    "물류": ["물류", "택배", "물류센터"],
+    "해운": ["해운", "HMM", "해상운임"],
+}
+
 
 def get_headers():
     return {
@@ -48,15 +59,11 @@ def get_headers():
 
 
 def parse_pub_date(date_str):
-    """
-    RSS 발행일을 KST 기준 YYYY-MM-DD로 변환
-    """
+    """RSS 발행일을 KST 기준 YYYY-MM-DD로 변환"""
     if not date_str:
         return now_kst().strftime("%Y-%m-%d")
     try:
-        # RFC 822 형식 파싱 (시간대 정보 포함)
         dt = parsedate_to_datetime(date_str)
-        # KST로 변환
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         dt_kst = dt.astimezone(KST)
@@ -69,7 +76,7 @@ def parse_pub_date(date_str):
 
 
 def parse_rss(content, source_name):
-    """RSS XML을 파싱해서 기사 리스트로 변환"""
+    """RSS XML을 파싱"""
     articles = []
     try:
         soup = BeautifulSoup(content, "xml")
@@ -115,13 +122,10 @@ def parse_rss(content, source_name):
 
 
 def fetch_rss(url, source_name):
-    """RSS URL 하나를 가져와서 파싱"""
     try:
         resp = requests.get(
-            url,
-            headers=get_headers(),
-            timeout=CRAWL_CONFIG["request_timeout"],
-            verify=False
+            url, headers=get_headers(),
+            timeout=CRAWL_CONFIG["request_timeout"], verify=False
         )
         resp.raise_for_status()
         return parse_rss(resp.content, source_name)
@@ -131,15 +135,12 @@ def fetch_rss(url, source_name):
 
 
 def fetch_google_news(keyword, max_count=20):
-    """구글 뉴스 RSS로 키워드 검색"""
     encoded = quote(keyword)
     url = f"https://news.google.com/rss/search?q={encoded}&hl=ko&gl=KR&ceid=KR:ko"
     try:
         resp = requests.get(
-            url,
-            headers=get_headers(),
-            timeout=CRAWL_CONFIG["request_timeout"],
-            verify=False
+            url, headers=get_headers(),
+            timeout=CRAWL_CONFIG["request_timeout"], verify=False
         )
         resp.raise_for_status()
         soup = BeautifulSoup(resp.content, "xml")
@@ -256,7 +257,10 @@ def run_scraping():
 
     for category, info in CATEGORIES.items():
         print(f"\n  {info['icon']} {category}")
-        for kw in info["keywords"][:2]:
+        # 분야별 정해진 검색 키워드 사용
+        search_kws = SEARCH_KEYWORDS.get(category, info["keywords"][:2])
+
+        for kw in search_kws:
             print(f"    검색어: '{kw}'")
             articles = fetch_google_news(kw, max_count=15)
 

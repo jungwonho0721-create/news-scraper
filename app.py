@@ -2,6 +2,7 @@
 Streamlit 메인 앱 - 산업 기사 스크랩 페이지
 - KST(한국 시간) 기준으로 모든 시간 처리
 - 페이지 상단에 현재 시각 표시
+- 기본 조회 기간: 오늘
 """
 import streamlit as st
 from datetime import datetime, timezone, timedelta
@@ -212,14 +213,12 @@ header_col1, header_col2 = st.columns([3, 2])
 
 with header_col1:
     st.title("📰 산업 기사 스크랩")
-    st.caption("원자력 · 전력 · 방산 · 반도체 분야 최신 뉴스")
+    st.caption("원자력 · 전력 · 방산 · 반도체 · 물류 · 해운 분야 최신 뉴스")
 
 with header_col2:
-    # 현재 시각 (KST)
     current = now_kst()
     weekday_kr = ["월", "화", "수", "목", "금", "토", "일"][current.weekday()]
     
-    # 마지막 업데이트 (가장 최근 기사 발행일 기준)
     latest_date = get_latest_pub_date()
     
     st.markdown(f"""
@@ -253,16 +252,16 @@ with st.sidebar:
 
     st.divider()
 
-    # 날짜 범위 (KST 기준)
+    # 날짜 범위 (KST 기준) - 기본값 "오늘"로 변경
     st.subheader("📅 기간")
     date_option = st.radio(
         "선택",
         ["오늘", "최근 3일", "최근 7일", "직접 선택"],
-        index=2,
+        index=0,  # ★ 기본값 "오늘"로 변경 (이전: 2 → 0)
         label_visibility="collapsed"
     )
 
-    today = today_kst()  # KST 기준 오늘!
+    today = today_kst()
     
     if date_option == "오늘":
         start_date, end_date = today, today
@@ -322,7 +321,6 @@ with col2:
     sort_order = "desc" if "최신순" in sort_label else "asc"
 
 with col3:
-    # 기간 표시 (KST 기준)
     st.markdown(
         f"<div style='text-align: right; padding-top: 8px; font-size: 13px; color: #666;'>"
         f"📆 조회 기간: <b>{start_date} ~ {end_date}</b>"
