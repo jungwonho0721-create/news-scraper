@@ -1,11 +1,20 @@
 """
 SQLite 데이터베이스 관리 모듈
+- 모든 시각을 KST(한국 시간) 기준으로 처리
 """
 import sqlite3
 import os
-from datetime import datetime, date
+from datetime import datetime, timezone, timedelta
 from contextlib import contextmanager
 from config import DB_PATH
+
+# 한국 표준시
+KST = timezone(timedelta(hours=9))
+
+
+def today_kst():
+    """오늘 날짜 (KST 기준)"""
+    return datetime.now(KST).strftime("%Y-%m-%d")
 
 
 @contextmanager
@@ -73,13 +82,7 @@ def insert_article(title, category, summary, url, source, pub_date):
 
 def fetch_articles(categories=None, start_date=None, end_date=None, keyword=None,
                    sort_order="desc", limit=300):
-    """
-    조건에 따라 기사 조회
-    - categories: 분야 리스트
-    - start_date, end_date: 날짜 범위 (YYYY-MM-DD)
-    - keyword: 제목 검색어
-    - sort_order: 'desc' (최신순) or 'asc' (오래된순)
-    """
+    """조건에 따라 기사 조회"""
     query = "SELECT * FROM articles WHERE 1=1"
     params = []
 
@@ -100,7 +103,6 @@ def fetch_articles(categories=None, start_date=None, end_date=None, keyword=None
         query += " AND (title LIKE ? OR summary LIKE ?)"
         params.extend([f"%{keyword}%", f"%{keyword}%"])
 
-    # 정렬: 최신순(desc) / 오래된순(asc)
     order = "DESC" if sort_order == "desc" else "ASC"
     query += f" ORDER BY pub_date {order}, scraped_at {order} LIMIT ?"
     params.append(limit)
@@ -124,8 +126,8 @@ def get_article_count_by_category():
 
 
 def record_visitor(visitor_hash):
-    """방문자 기록 (일일 유니크)"""
-    today = date.today().isoformat()
+    """방문자 기록 (KST 기준 일일 유니크)"""
+    today = today_kst()
     with get_connection() as conn:
         cursor = conn.cursor()
         try:
@@ -139,8 +141,8 @@ def record_visitor(visitor_hash):
 
 
 def get_visitor_stats():
-    """누적/일일 방문자 수 조회"""
-    today = date.today().isoformat()
+    """누적/일일 방문자 수 조회 (KST 기준)"""
+    today = today_kst()
     with get_connection() as conn:
         cursor = conn.cursor()
 
@@ -151,3 +153,12 @@ def get_visitor_stats():
         today_count = cursor.fetchone()["today"]
 
         return {"total": total, "today": today_count}
+
+
+def get_latest_pub_date():
+    """가장 최근 기사의 발행일 (KST 기준)"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(pub_date) as latest FROM articles")
+        result = cursor.fetchone()
+        return result["latest"] if result and result["latest"] else None

@@ -1,15 +1,31 @@
 """
 Streamlit 메인 앱 - 산업 기사 스크랩 페이지
-- 2열 그리드 레이아웃
-- 정렬 옵션 (최신순/오래된순)
+- KST(한국 시간) 기준으로 모든 시간 처리
+- 페이지 상단에 현재 시각 표시
 """
 import streamlit as st
-from datetime import date, timedelta
+from datetime import datetime, timezone, timedelta
 import html
 
 from config import CATEGORIES
-from database import init_db, fetch_articles, get_article_count_by_category
+from database import (
+    init_db, fetch_articles, get_article_count_by_category,
+    get_latest_pub_date
+)
 from visitor_counter import track_visit, display_visitor_stats
+
+# 한국 표준시
+KST = timezone(timedelta(hours=9))
+
+
+def now_kst():
+    """현재 KST 시각"""
+    return datetime.now(KST)
+
+
+def today_kst():
+    """오늘 날짜 (KST)"""
+    return now_kst().date()
 
 
 # ================================
@@ -34,6 +50,27 @@ st.markdown("""
     .block-container {
         padding-top: 2rem;
         padding-bottom: 5rem;
+    }
+    
+    /* 현재 시각 박스 */
+    .current-time {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        border-radius: 10px;
+        padding: 12px 18px;
+        margin-bottom: 8px;
+        display: inline-block;
+        font-size: 14px;
+        color: #2c3e50;
+        font-weight: 500;
+    }
+    .current-time .label {
+        color: #7f8c8d;
+        font-size: 12px;
+        margin-right: 8px;
+    }
+    .current-time .time {
+        color: #2c3e50;
+        font-weight: 700;
     }
     
     .article-card {
@@ -169,10 +206,34 @@ def render_grid(articles, show_category_tag=True, columns=2):
 
 
 # ================================
-# 헤더
+# 헤더 + 현재 시각
 # ================================
-st.title("📰 산업 기사 스크랩")
-st.caption("원자력 · 전력 · 방산 · 반도체 분야 최신 뉴스")
+header_col1, header_col2 = st.columns([3, 2])
+
+with header_col1:
+    st.title("📰 산업 기사 스크랩")
+    st.caption("원자력 · 전력 · 방산 · 반도체 분야 최신 뉴스")
+
+with header_col2:
+    # 현재 시각 (KST)
+    current = now_kst()
+    weekday_kr = ["월", "화", "수", "목", "금", "토", "일"][current.weekday()]
+    
+    # 마지막 업데이트 (가장 최근 기사 발행일 기준)
+    latest_date = get_latest_pub_date()
+    
+    st.markdown(f"""
+    <div style="text-align: right; padding-top: 10px;">
+        <div class="current-time">
+            <span class="label">🕐 현재 시각</span>
+            <span class="time">{current.strftime("%Y-%m-%d")} ({weekday_kr}) {current.strftime("%H:%M")}</span>
+        </div>
+        <div style="font-size: 11.5px; color: #888; margin-top: 4px;">
+            최신 기사: {latest_date if latest_date else '없음'} · KST
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 st.divider()
 
 # ================================
@@ -192,7 +253,7 @@ with st.sidebar:
 
     st.divider()
 
-    # 날짜 범위
+    # 날짜 범위 (KST 기준)
     st.subheader("📅 기간")
     date_option = st.radio(
         "선택",
@@ -201,7 +262,8 @@ with st.sidebar:
         label_visibility="collapsed"
     )
 
-    today = date.today()
+    today = today_kst()  # KST 기준 오늘!
+    
     if date_option == "오늘":
         start_date, end_date = today, today
     elif date_option == "최근 3일":
@@ -244,14 +306,12 @@ with st.sidebar:
 # ================================
 # 메인 영역 - 기사 목록
 # ================================
-# 상단에 결과 요약 + 정렬 버튼
 col1, col2, col3 = st.columns([2, 2, 2])
 
 with col1:
     st.subheader(f"📄 검색 결과")
 
 with col2:
-    # 정렬 버튼 (가운데)
     sort_label = st.radio(
         "정렬",
         ["🔽 최신순", "🔼 오래된순"],
@@ -262,9 +322,15 @@ with col2:
     sort_order = "desc" if "최신순" in sort_label else "asc"
 
 with col3:
-    st.caption(f"기간: {start_date} ~ {end_date}")
+    # 기간 표시 (KST 기준)
+    st.markdown(
+        f"<div style='text-align: right; padding-top: 8px; font-size: 13px; color: #666;'>"
+        f"📆 조회 기간: <b>{start_date} ~ {end_date}</b>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
 
-# 기사 조회 (정렬 옵션 적용)
+# 기사 조회
 articles = fetch_articles(
     categories=selected_categories if selected_categories else None,
     start_date=start_date.isoformat(),
