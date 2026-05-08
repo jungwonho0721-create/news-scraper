@@ -1,0 +1,18 @@
+name: Keep Alive
+
+# 목적: 저장소를 항상 "활성" 상태로 유지하여 
+# GitHub의 60일 비활성 자동 비활성화 정책을 회피
+
+on:
+  schedule:
+    - cron: '17 0 */7 * *'  # 7일에 한 번, 09:17 KST
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Heartbeat
+        run: |
+          echo "저장소 활성 상태 유지 중"
+          echo "현재 시각: $(TZ=Asia/Seoul date)"

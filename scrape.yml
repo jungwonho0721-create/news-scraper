@@ -1,0 +1,127 @@
+name: Scheduled News Scraping
+
+# 전략: GitHub Actions cron의 누락에 대응하기 위해
+# 1) 정각이 아닌 어중간한 시각 사용 (큐 적체 회피)
+# 2) 각 목표 시각마다 3번 등록 (중복 트리거로 누락 방어)
+# 3) 최근 30분 내 실행 이력 있으면 스킵 (중복 작업 방지)
+# 4) push 트리거 추가 (저장소 활성 유지)
+
+on:
+  schedule:
+    # ===== 07시 목표 (07:00 KST = UTC 22:00) =====
+    - cron: '27 21 * * *'   # 06:27 KST (조기 시도)
+    - cron: '7 22 * * *'    # 07:07 KST (정시 시도)
+    - cron: '47 22 * * *'   # 07:47 KST (지연 보정)
+    
+    # ===== 09시 목표 (09:00 KST = UTC 00:00) =====
+    - cron: '27 23 * * *'   # 08:27 KST
+    - cron: '7 0 * * *'     # 09:07 KST
+    - cron: '47 0 * * *'    # 09:47 KST
+    
+    # ===== 12시 목표 (12:00 KST = UTC 03:00) =====
+    - cron: '27 2 * * *'    # 11:27 KST
+    - cron: '7 3 * * *'     # 12:07 KST
+    - cron: '47 3 * * *'    # 12:47 KST
+    
+    # ===== 15시 목표 (15:00 KST = UTC 06:00) =====
+    - cron: '27 5 * * *'    # 14:27 KST
+    - cron: '7 6 * * *'     # 15:07 KST
+    - cron: '47 6 * * *'    # 15:47 KST
+  
+  workflow_dispatch:        # 수동 실행 허용
+  push:                     # 코드 변경 시 자동 실행 (저장소 활성 유지 효과)
+    branches:
+      - main
+    paths:
+      - 'scraper.py'
+      - 'config.py'
+      - '.github/workflows/scrape.yml'
+
+# 동시 실행 방지 (중복 cron 트리거 시에도 한 번에 하나만 실행)
+concurrency:
+  group: scrape-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  check_recent_run:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - name: Check if recent run exists (last 30 min)
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # workflow_dispatch나 push로 트리거된 경우는 항상 실행
+          if [[ "${{ github.event_name }}" != "schedule" ]]; then
+            echo "수동/푸시 트리거 - 항상 실행"
+            echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # 최근 30분 내 성공한 실행이 있는지 확인
+          THIRTY_MIN_AGO=$(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+          
+          RECENT_RUNS=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/actions/workflows/scrape.yml/runs?status=success&created=>${THIRTY_MIN_AGO}" \
+            --jq '.total_count')
+          
+          echo "최근 30분 내 성공 실행: $RECENT_RUNS 건"
+          
+          if [[ "$RECENT_RUNS" -gt 0 ]]; then
+            echo "최근에 이미 실행됨 - 스킵"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "실행 진행"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+  scrape:
+    needs: check_recent_run
+    if: needs.check_recent_run.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Show trigger info
+        run: |
+          echo "트리거: ${{ github.event_name }}"
+          echo "UTC: $(date -u)"
+          echo "KST: $(TZ=Asia/Seoul date)"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run scraper (with retry)
+        run: |
+          for i in 1 2 3; do
+            echo "===== 시도 $i/3 ====="
+            python scraper.py && break
+            echo "실패, 30초 후 재시도..."
+            sleep 30
+          done
+
+      - name: Commit and push DB
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/articles.db
+          if git diff --staged --quiet; then
+            echo "변경사항 없음 - 커밋 생략"
+          else
+            git commit -m "Auto: 기사 업데이트 $(TZ=Asia/Seoul date +'%Y-%m-%d %H:%M KST')"
+            git push
+          fi
