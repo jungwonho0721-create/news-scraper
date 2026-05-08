@@ -3,6 +3,7 @@ Streamlit 메인 앱 - 산업 기사 스크랩 페이지
 - KST(한국 시간) 기준으로 모든 시간 처리
 - 페이지 상단에 현재 시각 표시
 - 기본 조회 기간: 오늘
+- 푸터: 제작자 정보 + 저작권 안내
 """
 import streamlit as st
 from datetime import datetime, timezone, timedelta
@@ -50,7 +51,7 @@ st.markdown("""
 <style>
     .block-container {
         padding-top: 2rem;
-        padding-bottom: 5rem;
+        padding-bottom: 6rem;
     }
     
     /* 현재 시각 박스 */
@@ -157,6 +158,43 @@ st.markdown("""
         color: #4ECDC4;
         font-weight: 700;
     }
+    
+    /* 푸터 */
+    .footer-section {
+        margin-top: 40px;
+        padding: 24px 20px 80px 20px;
+        border-top: 1px solid #e0e0e0;
+        background: #fafafa;
+        border-radius: 8px;
+    }
+    .footer-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 8px;
+    }
+    .footer-text {
+        font-size: 12px;
+        color: #666;
+        line-height: 1.7;
+        margin-bottom: 4px;
+    }
+    .footer-author {
+        font-size: 13px;
+        color: #2c3e50;
+        font-weight: 600;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px dashed #ccc;
+    }
+    .footer-author .heart {
+        color: #e74c3c;
+    }
+    .footer-divider {
+        margin: 14px 0;
+        border: none;
+        border-top: 1px dashed #d0d0d0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -252,12 +290,12 @@ with st.sidebar:
 
     st.divider()
 
-    # 날짜 범위 (KST 기준) - 기본값 "오늘"로 변경
+    # 날짜 범위 (KST 기준) - 기본값 "오늘"
     st.subheader("📅 기간")
     date_option = st.radio(
         "선택",
         ["오늘", "최근 3일", "최근 7일", "직접 선택"],
-        index=0,  # ★ 기본값 "오늘"로 변경 (이전: 2 → 0)
+        index=0,
         label_visibility="collapsed"
     )
 
@@ -361,6 +399,32 @@ else:
             st.markdown("---")
     else:
         render_grid(articles, show_category_tag=True, columns=column_count)
+
+
+# ================================
+# 푸터 (저작권 안내 + 제작자)
+# ================================
+st.markdown(f"""
+<div class="footer-section">
+    <div class="footer-title">📌 안내사항</div>
+    <div class="footer-text">
+        • 본 페이지는 공개된 RSS 피드를 통해 수집된 산업 분야 뉴스를 안내하는 비영리 정보 제공 서비스입니다.
+    </div>
+    <div class="footer-text">
+        • <b>모든 기사의 저작권은 해당 언론사 및 기자에게 있습니다.</b> 본 페이지는 기사의 제목, 요약, 출처 링크만 제공하며, 원문 콘텐츠는 각 언론사 사이트에서 확인하실 수 있습니다.
+    </div>
+    <div class="footer-text">
+        • 기사 수집 출처: 연합뉴스, 매일경제, 한국경제, 전자신문, 구글뉴스 등 공개 RSS
+    </div>
+    <div class="footer-text">
+        • 기사 자동 업데이트: 매일 4회 (07시 / 09시 / 12시 / 15시 KST)
+    </div>
+    <hr class="footer-divider">
+    <div class="footer-author">
+        <span class="heart">♥</span> Made by <b>정원호</b> · {current.year}
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 
 # ================================
