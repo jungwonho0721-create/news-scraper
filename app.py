@@ -13,7 +13,6 @@ from database import (
     init_db, fetch_articles, get_article_count_by_category,
     get_latest_pub_date
 )
-from visitor_counter import track_visit, display_visitor_stats
 
 KST = timezone(timedelta(hours=9))
 
@@ -37,7 +36,6 @@ st.set_page_config(
 )
 
 init_db()
-track_visit()
 
 # ================================
 # 커스텀 CSS - 깔끔한 디자인
@@ -206,24 +204,6 @@ st.markdown("""
     .result-count b {
         color: #2c5282;
         font-size: 17px;
-    }
-
-    /* ===== 방문자 카운터 ===== */
-    .visitor-box {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: rgba(30, 58, 95, 0.92);
-        color: #fff;
-        padding: 11px 18px;
-        border-radius: 24px;
-        font-size: 12.5px;
-        z-index: 999;
-        box-shadow: 0 4px 16px rgba(30, 58, 95, 0.3);
-    }
-    .visitor-box .num {
-        color: #7dd3c8;
-        font-weight: 700;
     }
 
     /* ===== 푸터 ===== */
@@ -465,12 +445,5 @@ st.markdown(f"""
     <div class="footer-text">• 수집 출처: 연합뉴스, 매일경제, 전자신문, 구글뉴스 등 공개 RSS</div>
     <hr class="fdiv">
     <div class="footer-author"><span class="heart">♥</span> Made by <b>정원호</b> · {current.year}</div>
-</div>
-""", unsafe_allow_html=True)
-
-stats = display_visitor_stats()
-st.markdown(f"""
-<div class="visitor-box">
-    👥 누적 <span class="num">{stats['total']:,}</span> · 오늘 <span class="num">{stats['today']:,}</span>
 </div>
 """, unsafe_allow_html=True)
