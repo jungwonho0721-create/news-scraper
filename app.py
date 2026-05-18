@@ -299,13 +299,15 @@ with st.sidebar:
     for group_name, cats in CATEGORY_GROUPS.items():
         st.markdown(f'<div class="sidebar-group-title">{group_name}</div>',
                     unsafe_allow_html=True)
+        # 산업 분야는 기본 체크, 인사·노무 그룹은 기본 해제
+        group_default = "인사" not in group_name
         for cat in cats:
             if cat not in CATEGORIES:
                 continue
             info = CATEGORIES[cat]
             cnt = counts.get(cat, 0)
             if st.checkbox(f"{info['icon']} {cat} ({cnt})",
-                           value=True, key=f"cb_{cat}"):
+                           value=group_default, key=f"cb_{cat}"):
                 selected_categories.append(cat)
 
     st.divider()
@@ -321,7 +323,7 @@ with st.sidebar:
     imp_filter = st.multiselect(
         "중요도",
         ["상 (즉시 확인)", "중 (주간 검토)", "하 (단순 참고)"],
-        default=["상 (즉시 확인)", "중 (주간 검토)", "하 (단순 참고)"],
+        default=["상 (즉시 확인)"],
         label_visibility="collapsed"
     )
     imp_selected = set()
