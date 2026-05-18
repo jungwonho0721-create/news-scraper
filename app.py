@@ -233,22 +233,18 @@ def get_card_html(art, show_tag=True, compact=False, dup_count=0):
 
     cls = "article-card compact" if compact else "article-card"
 
-    return f"""
-    <div class="{cls}" style="border-left-color:{color};">
-        <div>
-            {imp_html} {cat_html}
-            <span class="article-date">📅 {art['pub_date']}</span>
-        </div>
-        <div style="margin-top:6px;">{rel_html}</div>
-        <div class="article-title">{title_safe}</div>
-        {summary_block}
-        {dup_block}
-        <div class="article-footer">
-            <span class="article-source">📰 {source_safe}</span>
-            <a href="{url}" target="_blank" class="article-link">원문 보기 →</a>
-        </div>
-    </div>
-    """
+    return (
+        f'<div class="{cls}" style="border-left-color:{color};">'
+        f'<div>{imp_html} {cat_html}'
+        f'<span class="article-date">📅 {art["pub_date"]}</span></div>'
+        f'<div style="margin-top:6px;">{rel_html}</div>'
+        f'<div class="article-title">{title_safe}</div>'
+        f'{summary_block}{dup_block}'
+        f'<div class="article-footer">'
+        f'<span class="article-source">📰 {source_safe}</span>'
+        f'<a href="{url}" target="_blank" class="article-link">원문 보기 →</a>'
+        f'</div></div>'
+    )
 
 
 def render_groups(groups, show_tag=True, compact=False, columns=2):
@@ -271,23 +267,24 @@ last_scraped = get_last_scraped_time()
 
 hcol1, hcol2 = st.columns([3, 1.3])
 with hcol1:
-    st.markdown("""
-    <div class="app-header">
-        <h1>📰 기사 스크랩</h1>
-        <div class="subtitle">산업 · 인사노무 분야 업무용 뉴스 모니터링</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div class="app-header">'
+        '<h1>📰 기사 스크랩</h1>'
+        '<div class="subtitle">산업 · 인사노무 분야 업무용 뉴스 모니터링</div>'
+        '</div>',
+        unsafe_allow_html=True
+    )
 with hcol2:
     upd = last_scraped[:16].replace("T", " ") if last_scraped else "없음"
-    st.markdown(f"""
-    <div class="app-header" style="background:linear-gradient(120deg,#2c5282 0%,#3a6aa5 100%);">
-        <div class="header-clock">
-            <span class="time-big">{current.strftime("%H:%M")}</span>
-            {current.strftime("%Y-%m-%d")} ({weekday_kr})
-            <div class="latest">🔄 마지막 업데이트: {upd}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div class="app-header" style="background:linear-gradient(120deg,#2c5282 0%,#3a6aa5 100%);">'
+        '<div class="header-clock">'
+        f'<span class="time-big">{current.strftime("%H:%M")}</span>'
+        f'{current.strftime("%Y-%m-%d")} ({weekday_kr})'
+        f'<div class="latest">🔄 마지막 업데이트: {upd}</div>'
+        '</div></div>',
+        unsafe_allow_html=True
+    )
 
 st.write("")
 
@@ -456,7 +453,7 @@ else:
             st.markdown(
                 f"### {info['icon']} {cat} "
                 f"<span style='font-size:13px;color:#95a5a6;'>"
-                f"({len(cat_arts)}건 / 묶음 {len(grps)}개)</span>",
+                f"({len(cat_arts)}건)</span>",
                 unsafe_allow_html=True
             )
             render_groups(grps, show_tag=False,
@@ -465,8 +462,6 @@ else:
     else:
         grps = group_duplicates(articles) if merge_dup else \
             [{"rep": a, "dups": []} for a in articles]
-        if merge_dup and len(grps) < len(articles):
-            st.caption(f"🔗 중복 묶기 적용: {len(articles)}건 → {len(grps)}개 이슈")
         render_groups(grps, show_tag=True,
                       compact=compact_mode, columns=column_count)
 
@@ -474,14 +469,15 @@ else:
 # ================================
 # 푸터
 # ================================
-st.markdown(f"""
-<div class="footer-section">
-    <div class="footer-title">📌 안내사항</div>
-    <div class="footer-text">• 본 페이지는 공개된 RSS 피드를 통해 수집된 뉴스를 안내하는 비영리 정보 제공 서비스입니다.</div>
-    <div class="footer-text">• <b>모든 기사의 저작권은 해당 언론사 및 기자에게 있습니다.</b> 제목·요약·출처 링크만 제공하며 원문은 각 언론사 사이트에서 확인하실 수 있습니다.</div>
-    <div class="footer-text">• 중요도·업무 관련성 태그는 키워드 규칙 기반 <b>자동 추정값</b>으로, 실제 업무 판단과 다를 수 있습니다.</div>
-    <div class="footer-text">• 수집 출처: 연합뉴스, 매일경제, 전자신문, 구글뉴스 등 공개 RSS</div>
-    <hr class="fdiv">
-    <div class="footer-author"><span class="heart">♥</span> Made by <b>정원호</b> · {current.year}</div>
-</div>
-""", unsafe_allow_html=True)
+st.markdown(
+    '<div class="footer-section">'
+    '<div class="footer-title">📌 안내사항</div>'
+    '<div class="footer-text">• 본 페이지는 공개된 RSS 피드를 통해 수집된 뉴스를 안내하는 비영리 정보 제공 서비스입니다.</div>'
+    '<div class="footer-text">• <b>모든 기사의 저작권은 해당 언론사 및 기자에게 있습니다.</b> 제목·요약·출처 링크만 제공하며 원문은 각 언론사 사이트에서 확인하실 수 있습니다.</div>'
+    '<div class="footer-text">• 중요도·업무 관련성 태그는 키워드 규칙 기반 <b>자동 추정값</b>으로, 실제 업무 판단과 다를 수 있습니다.</div>'
+    '<div class="footer-text">• 수집 출처: 연합뉴스, 매일경제, 전자신문, 구글뉴스 등 공개 RSS</div>'
+    '<hr class="fdiv">'
+    f'<div class="footer-author"><span class="heart">♥</span> Made by <b>정원호</b> · {current.year}</div>'
+    '</div>',
+    unsafe_allow_html=True
+)
