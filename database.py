@@ -162,3 +162,27 @@ def get_latest_pub_date():
         cursor.execute("SELECT MAX(pub_date) as latest FROM articles")
         result = cursor.fetchone()
         return result["latest"] if result and result["latest"] else None
+
+
+def get_all_sources():
+    """DB에 있는 모든 언론사 목록 (기사 수 많은 순)"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT source, COUNT(*) as cnt
+            FROM articles
+            WHERE source IS NOT NULL AND source != ''
+            GROUP BY source
+            ORDER BY cnt DESC
+        """)
+        return [row["source"] for row in cursor.fetchall()]
+
+
+def get_last_scraped_time():
+    """가장 최근 기사가 DB에 저장된 시각 (마지막 업데이트 추정)"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(scraped_at) as last FROM articles")
+        result = cursor.fetchone()
+        return result["last"] if result and result["last"] else None
+
